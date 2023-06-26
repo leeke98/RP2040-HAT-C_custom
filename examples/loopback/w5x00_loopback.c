@@ -18,6 +18,8 @@
 
 #include "loopback.h"
 
+#include "w5100s.h"
+
 /**
  * ----------------------------------------------------------------------------------------------------
  * Macros
@@ -44,9 +46,9 @@
 static wiz_NetInfo g_net_info =
     {
         .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x56}, // MAC address
-        .ip = {192, 168, 11, 2},                     // IP address
+        .ip = {192, 168, 56, 177},                     // IP address
         .sn = {255, 255, 255, 0},                    // Subnet Mask
-        .gw = {192, 168, 11, 1},                     // Gateway
+        .gw = {192, 168, 56, 2},                     // Gateway
         .dns = {8, 8, 8, 8},                         // DNS server
         .dhcp = NETINFO_STATIC                       // DHCP enable/disable
 };
@@ -85,6 +87,36 @@ int main()
     wizchip_initialize();
     wizchip_check();
 
+    // 1. Version 확인 ----------------------------------------
+    // uint8_t version = getVER();
+    // printf("Ver: 0x%02X\n", version);
+
+    // 2. 한 바이트 레지스터 설정 ------------------------------
+    // // RMSR 레지스터에 값을 설정하는 예시
+    // uint8_t rmsr_value = 0x54; // default = 0x55
+    // setRMSR(rmsr_value);
+
+    // // RMSR 레지스터 값을 읽어오는 예시
+    // uint8_t read_rmsr = getRMSR();
+
+    // // 값 출력
+    // printf("RMSR value: 0x%02X\n", read_rmsr);
+
+    // 3. 여러 바이트 레지스터 설정 ----------------------------
+    // // 4바이트로 이루어진 배열 선언
+    // uint8_t subr_array[4] = {0xFF, 0xFF, 0xFF, 0x01};
+
+    // // SUBR 레지스터에 값을 설정하기 위해 setSUBR 함수 호출
+    // setSUBR(subr_array);
+
+    // // SUBR 레지스터 값을 읽어오기 위해 getSUBR 함수 호출
+    // uint8_t read_subr_array[4];
+    // getSUBR(read_subr_array);
+
+    // // 값 출력
+    // printf("SUBR value: 0x%02X 0x%02X 0x%02X 0x%02X\n", 
+    //        read_subr_array[0], read_subr_array[1], read_subr_array[2], read_subr_array[3]);
+
     network_initialize(g_net_info);
 
     /* Get network information */
@@ -100,6 +132,28 @@ int main()
 
             while (1)
                 ;
+        }
+        if (getSn_SR(SOCKET_LOOPBACK) == SOCK_ESTABLISHED)
+        {
+            if (getSn_RX_RSR(SOCKET_LOOPBACK) > 0)
+            {
+                retval = loopback_tcps(SOCKET_LOOPBACK, g_loopback_buf, PORT_LOOPBACK);
+
+                if (retval > 0)
+                {
+                    // 클라이언트로부터 메시지를 받은 경우에만 처리
+                    // 클라이언트가 보낸 메시지의 첫 번째 바이트를 IR 값으로 사용 (클라이언트가 보낸 메시지의 첫 번째 바이트로 가정)
+                    uint8_t rmsr_value = g_loopback_buf[0]; // default = 0x55
+                    setRMSR(rmsr_value);
+
+                    // RMSR 레지스터 값을 읽어오는 예시
+                    uint8_t read_rmsr = getRMSR();
+
+                    // 값 출력
+                    printf("Set RMSR value: 0x%02X\n", rmsr_value);
+                    printf("RMSR value: 0x%02X\n", read_rmsr);
+                }
+            }
         }
     }
 }
